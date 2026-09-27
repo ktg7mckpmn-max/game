@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Motorbike - Moto Bird</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;700;900&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Glassmorphism effects */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-retro {
+            transition: all 0.15s ease;
+            box-shadow: 0 6px 0 #1e293b;
+        }
+
+        .btn-retro:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #1e293b;
+        }
+
+        /* Custom pulse animation for press to jump indicator */
+        @keyframes floatUpDown {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-float {
+            animation: floatUpDown 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex items-center justify-center bg-slate-950 text-white relative">
+
+    <!-- Game Container Wrapper -->
+    <div id="app-container" class="relative w-full h-full max-w-md max-h-[900px] sm:h-[90vh] sm:rounded-3xl sm:border-4 sm:border-slate-700 sm:shadow-2xl overflow-hidden flex flex-col bg-sky-300">
+        
+        <!-- Game Canvas Element -->
+        <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+        <!-- Top HUD Score Overlay -->
+        <div id="hud-score" class="absolute top-6 left-0 right-0 flex justify-center items-center pointer-events-none z-10 hidden">
+            <span id="current-score" class="pixel-font text-4xl text-amber-400 drop-shadow-[0_4px_0_rgba(0,0,0,1)] stroke-black">0</span>
+        </div>
+
+        <!-- Start Screen Overlay -->
+        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-between p-6 z-20 glass-panel">
+            <div class="mt-8 text-center">
+                <div class="inline-block bg-amber-500 text-slate-950 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2">Arcade Rider</div>
+                <h1 class="pixel-font text-2xl sm:text-3xl text-amber-400 drop-shadow-[0_4px_0_rgba(0,0,0,0.8)] leading-tight mb-2">MOTO BIRD</h1>
+                <p class="text-slate-300 text-sm font-medium">Navigate the street barriers!</p>
+            </div>
+
+            <!-- Animated Bike Demo Graphic -->
+            <div class="my-auto flex flex-col items-center justify-center animate-float text-center">
+                <div class="w-24 h-24 bg-amber-500/20 rounded-full flex items-center justify-center border-2 border-amber-400/50 mb-4">
+                    <i class="fa-solid fa-motorcycle text-5xl text-amber-400 drop-shadow-md"></i>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-full border border-slate-700 text-xs font-semibold text-slate-200">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    TAP / SPACE / CLICK to Throttle Up
+                </div>
+            </div>
+
+            <!-- Best Score & Start Button -->
+            <div class="w-full space-y-4 mb-4">
+                <div class="flex justify-between items-center bg-slate-800/60 p-3 rounded-xl border border-slate-700">
+                    <span class="text-xs uppercase tracking-wider font-bold text-slate-400"><i class="fa-solid fa-trophy text-amber-400 mr-1"></i> Best Record</span>
+                    <span id="best-score-start" class="pixel-font text-amber-400 text-lg">0</span>
+                </div>
+                
+                <button id="start-btn" class="w-full btn-retro bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-4 rounded-xl text-lg uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-play"></i> START RIDE
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen Overlay -->
+        <div id="game-over-screen" class="absolute inset-0 flex flex-col items-center justify-center p-6 z-20 glass-panel hidden">
+            <div class="w-full bg-slate-900/90 border-2 border-slate-700 rounded-2xl p-6 text-center shadow-2xl relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl"></div>
+                
+                <h2 class="pixel-font text-2xl text-rose-500 drop-shadow-[0_2px_0_rgba(0,0,0,1)] mb-6">CRASHED!</h2>
+                
+                <div class="space-y-3 mb-6">
+                    <div class="bg-slate-800/80 p-3 rounded-xl flex justify-between items-center border border-slate-700/50">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Score</span>
+                        <span id="final-score" class="pixel-font text-2xl text-white">0</span>
+                    </div>
+                    <div class="bg-slate-800/80 p-3 rounded-xl flex justify-between items-center border border-slate-700/50">
+                        <span class="text-xs font-bold text-slate-400 uppercase"><i class="fa-solid fa-trophy text-amber-400 mr-1"></i> Best Score</span>
+                        <span id="best-score-end" class="pixel-font text-2xl text-amber-400">0</span>
+                    </div>
+                </div>
+
+                <div id="new-high-score-badge" class="hidden mb-4 bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full text-xs font-bold uppercase animate-bounce">
+                    🎉 New High Score!
+                </div>
+
+                <button id="restart-btn" class="w-full btn-retro bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-4 rounded-xl text-lg uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-rotate-right"></i> TRY AGAIN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sound Effects Engine using Web Audio API
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playJump() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.12);
+                
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            playScore() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.08); // A5
+
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            playCrash() {
+                if (!this.ctx) return;
+                // Noise buffer for crash impact
+                const bufferSize = this.ctx.sampleRate * 0.3;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+                filter.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start();
+                noise.stop(this.ctx.currentTime + 0.3);
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+
+        // Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Element References
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const hudScore = document.getElementById('hud-score');
+        const currentScoreEl = document.getElementById('current-score');
+        const finalScoreEl = document.getElementById('final-score');
+        const bestScoreStartEl = document.getElementById('best-score-start');
+        const bestScoreEndEl = document.getElementById('best-score-end');
+        const newHighScoreBadge = document.getElementById('new-high-score-badge');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Game Configuration & State
+        let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('moto_bird_highscore')) || 0;
+        let frameCount = 0;
+        let speed = 2.5;
+
+        // Physics Constants
+        const GRAVITY = 0.38;
+        const JUMP_FORCE = -7.2;
+
+        // Motorbike Player Object
+        const bike = {
+            x: 70,
+            y: 0,
+            width: 44,
+            height: 28,
+            velocity: 0,
+            rotation: 0,
+            wheelAngle: 0,
+
+            reset() {
+                this.y = canvas.height / 2 - 20;
+                this.velocity = 0;
+                this.rotation = 0;
+                this.wheelAngle = 0;
+            },
+
+            jump() {
+                this.velocity = JUMP_FORCE;
+                soundEngine.playJump();
+                createExhaustParticles(this.x, this.y + 18);
+            },
+
+            update() {
+                this.velocity += GRAVITY;
+                this.y += this.velocity;
+
+                // Calculate tilt angle based on velocity (wheelie effect)
+                if (this.velocity < 0) {
+                    this.rotation = Math.max(-0.45, (this.velocity / 12));
+                } else {
+                    this.rotation = Math.min(0.7, (this.velocity / 10));
+                }
+
+                // Rotate wheels when flying
+                this.wheelAngle += 0.2;
+            },
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.rotate(this.rotation);
+
+                // Motorbike Chassis Coordinates relative to center
+                const w = this.width;
+                const h = this.height;
+
+                // 1. Wheels
+                ctx.fillStyle = '#1e293b'; // Tire dark gray
+                ctx.strokeStyle = '#94a3b8'; // Rim metallic gray
+                ctx.lineWidth = 2;
+
+                // Rear Wheel
+                ctx.beginPath();
+                ctx.arc(-w/3, h/4, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Front Wheel
+                ctx.beginPath();
+                ctx.arc(w/3, h/4, 9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Spokes animation lines
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 1;
+                [-w/3, w/3].forEach(wx => {
+                    ctx.beginPath();
+                    ctx.moveTo(wx, h/4 - 7); ctx.lineTo(wx, h/4 + 7);
+                    ctx.moveTo(wx - 7, h/4); ctx.lineTo(wx + 7, h/4);
+                    ctx.stroke();
+                });
+
+                // 2. Bike Body Frame
+                ctx.fillStyle = '#f59e0b'; // Amber primary frame
+                ctx.beginPath();
+                ctx.moveTo(-w/2 + 2, h/4);
+                ctx.lineTo(-w/4, -h/4);
+                ctx.lineTo(w/4, -h/4);
+                ctx.lineTo(w/3, h/4);
+                ctx.lineTo(-w/4, h/4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Tank & Seat
+                ctx.fillStyle = '#ef4444'; // Red fuel tank
+                ctx.beginPath();
+                ctx.roundRect(-w/6, -h/2 + 2, 16, 10, 3);
+                ctx.fill();
+
+                ctx.fillStyle = '#0f172a'; // Leather seat
+                ctx.beginPath();
+                ctx.roundRect(-w/2 + 4, -h/3, 16, 6, 2);
+                ctx.fill();
+
+                // Handlebars & Fork
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(w/3, h/4);
+                ctx.lineTo(w/4 - 2, -h/2);
+                ctx.lineTo(w/4 + 6, -h/2 - 2); // Handlebar grip
+                ctx.stroke();
+
+                // Headlight
+                ctx.fillStyle = '#fef08a'; // Yellow glow
+                ctx.beginPath();
+                ctx.arc(w/3 + 4, -h/4, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Exhaust Pipe
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-w/3, h/4);
+                ctx.lineTo(-w/2 - 4, h/4 + 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        };
+
+        // Obstacles Array & Factory
+        let obstacles = [];
+        const OBSTACLE_GAP = 145; // Vertical space between obstacles
+        const OBSTACLE_WIDTH = 64;
+
+        function createObstacle() {
+            const minHeight = 60;
+            const maxHeight = canvas.height - OBSTACLE_GAP - minHeight - 80; // Leaving room for road
+            const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+            obstacles.push({
+                x: canvas.width,
+                topHeight: topHeight,
+                bottomY: topHeight + OBSTACLE_GAP,
+                bottomHeight: canvas.height - (topHeight + OBSTACLE_GAP) - 60, // Above ground
+                passed: false
+            });
+        }
+
+        // Exhaust Smoke Particle System
+        let particles = [];
+
+        function createExhaustParticles(x, y) {
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: -Math.random() * 2 - 1,
+                    vy: Math.random() * 1.5 - 0.75,
+                    size: Math.random() * 4 + 3,
+                    alpha: 0.8
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+                p.size += 0.2;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = `rgba(203, 213, 225, ${p.alpha})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Parallax Background Stars & Skyline
+        let bgOffset = 0;
+        let roadOffset = 0;
+
+        function drawBackground() {
+            // 1. Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#0f172a'); // Night sky top
+            skyGrad.addColorStop(0.6, '#1e1b4b');
+            skyGrad.addColorStop(1, '#312e81');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Distant City Skyline
+            ctx.fillStyle = '#1e293b';
+            const buildingWidth = 40;
+            const buildings = [120, 180, 140, 200, 90, 160, 220, 130, 170];
+            
+            for (let i = 0; i < buildings.length + 2; i++) {
+                const bx = (i * buildingWidth) - (bgOffset * 0.3) % buildingWidth;
+                const bh = buildings[i % buildings.length];
+                ctx.fillRect(bx, canvas.height - bh - 60, buildingWidth - 2, bh);
+                
+                // Building Windows
+                ctx.fillStyle = '#fef08a';
+                for (let wy = canvas.height - bh - 50; wy < canvas.height - 70; wy += 20) {
+                    if ((i + wy) % 3 === 0) {
+                        ctx.fillRect(bx + 8, wy, 8, 10);
+                        ctx.fillRect(bx + 22, wy, 8, 10);
+                    }
+                }
+                ctx.fillStyle = '#1e293b';
+            }
+
+            // 3. Road / Ground Surface
+            const roadY = canvas.height - 60;
+            ctx.fillStyle = '#334155'; // Asphalt gray
+            ctx.fillRect(0, roadY, canvas.width, 60);
+
+            // Curb Warning Stripe
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(0, roadY, canvas.width, 6);
+            ctx.fillStyle = '#ffffff';
+            for (let x = - (roadOffset % 30); x < canvas.width; x += 30) {
+                ctx.fillRect(x, roadY, 15, 6);
+            }
+
+            // Road Dashed Center Lines
+            ctx.fillStyle = '#fde047';
+            for (let x = - (roadOffset % 40); x < canvas.width; x += 40) {
+                ctx.fillRect(x, roadY + 28, 20, 4);
+            }
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                // Top Brick Pillar
+                drawPillar(obs.x, 0, OBSTACLE_WIDTH, obs.topHeight, true);
+                
+                // Bottom Brick Pillar
+                drawPillar(obs.x, obs.bottomY, OBSTACLE_WIDTH, obs.bottomHeight, false);
+            });
+        }
+
+        function drawPillar(x, y, width, height, isTop) {
+            ctx.save();
+            
+            // Main Pillar Body (Brick style pattern)
+            ctx.fillStyle = '#b91c1c'; // Brick red
+            ctx.fillRect(x, y, width, height);
+
+            // Brick Texture Lines
+            ctx.strokeStyle = '#7f1d1d';
+            ctx.lineWidth = 2;
+            for (let py = y + 10; py < y + height; py += 16) {
+                ctx.beginPath();
+                ctx.moveTo(x, py);
+                ctx.lineTo(x + width, py);
+                ctx.stroke();
+            }
+
+            // Caution Cap / Barrier Header
+            const capHeight = 20;
+            const capY = isTop ? y + height - capHeight : y;
+            
+            ctx.fillStyle = '#f59e0b'; // Yellow hazard base
+            ctx.fillRect(x - 4, capY, width + 8, capHeight);
+
+            // Hazard Diagonal Stripes
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            for (let sx = x - 4; sx < x + width + 8; sx += 12) {
+                ctx.moveTo(sx, capY + capHeight);
+                ctx.lineTo(sx + 6, capY);
+                ctx.lineTo(sx + 12, capY);
+                ctx.lineTo(sx + 6, capY + capHeight);
+            }
+            ctx.fill();
+
+            // Border outline
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x - 4, capY, width + 8, capHeight);
+
+            ctx.restore();
+        }
+
+        function checkCollisions() {
+            // Ground & Ceiling Collisions
+            const roadY = canvas.height - 60;
+            if (bike.y + bike.height / 2 >= roadY || bike.y - bike.height / 2 <= 0) {
+                return true;
+            }
+
+            // Obstacle Collisions
+            const bikeBox = {
+                left: bike.x + 4,
+                right: bike.x + bike.width - 4,
+                top: bike.y + 2,
+                bottom: bike.y + bike.height - 2
+            };
+
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+                
+                // Check X range overlap
+                if (bikeBox.right > obs.x && bikeBox.left < obs.x + OBSTACLE_WIDTH) {
+                    // Check top or bottom pillar overlap
+                    if (bikeBox.top < obs.topHeight || bikeBox.bottom > obs.bottomY) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            frameCount++;
+            bgOffset += speed * 0.5;
+            roadOffset += speed;
+
+            bike.update();
+            updateParticles();
+
+            // Spawn obstacles
+            if (frameCount % 110 === 0) {
+                createObstacle();
+            }
+
+            // Move and handle obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x -= speed;
+
+                // Check scoring
+                if (!obs.passed && obs.x + OBSTACLE_WIDTH < bike.x) {
+                    obs.passed = true;
+                    score++;
+                    currentScoreEl.textContent = score;
+                    soundEngine.playScore();
+
+                    // Increase difficulty slightly
+                    if (score % 5 === 0) {
+                        speed += 0.2;
+                    }
+                }
+
+                // Remove offscreen obstacles
+                if (obs.x < -OBSTACLE_WIDTH - 20) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Collision Check
+            if (checkCollisions()) {
+                handleGameOver();
+            }
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground();
+            drawObstacles();
+            drawParticles();
+            bike.draw();
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initGame() {
+            score = 0;
+            speed = 2.8;
+            frameCount = 0;
+            obstacles = [];
+            particles = [];
+            currentScoreEl.textContent = score;
+            bike.reset();
+        }
+
+        function startGame() {
+            soundEngine.init();
+            initGame();
+            gameState = 'PLAYING';
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            hudScore.classList.remove('hidden');
+            bike.jump();
+        }
+
+        function handleGameOver() {
+            gameState = 'GAMEOVER';
+            soundEngine.playCrash();
+
+            // Update high scores
+            let isNewHigh = false;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('moto_bird_highscore', highScore);
+                isNewHigh = true;
+            }
+
+            finalScoreEl.textContent = score;
+            bestScoreEndEl.textContent = highScore;
+
+            if (isNewHigh && score > 0) {
+                newHighScoreBadge.classList.remove('hidden');
+            } else {
+                newHighScoreBadge.classList.add('hidden');
+            }
+
+            hudScore.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // Canvas Auto-Resizing Function
+        function resizeCanvas() {
+            const container = document.getElementById('app-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (gameState === 'START') {
+                bike.reset();
+                render();
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Control Triggers (Jump)
+        function triggerJump(e) {
+            if (e) e.preventDefault();
+            
+            if (gameState === 'PLAYING') {
+                bike.jump();
+            }
+        }
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+                if (gameState === 'START') {
+                    startGame();
+                } else {
+                    triggerJump(e);
+                }
+            }
+        });
+
+        // Touch & Click Controls on Canvas
+        canvas.addEventListener('mousedown', (e) => {
+            if (gameState === 'PLAYING') {
+                triggerJump(e);
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameState === 'PLAYING') {
+                triggerJump(e);
+            }
+        }, { passive: false });
+
+        // Start & Restart Button Listeners
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Initial Setup on Load
+        window.onload = () => {
+            resizeCanvas();
+            bestScoreStartEl.textContent = highScore;
+            render();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
